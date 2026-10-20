@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { GradeLetter } from '../lib/types';
 
 export function fmt(n: number, dp = 2): string {
@@ -11,6 +11,33 @@ export const pct = (p: number) => {
   if (p > 0 && p < 0.01) return '<1%';
   return `${Math.round(p * 100)}%`;
 };
+
+/**
+ * Where a student stands, in encouraging words. Low chances are framed as how much push is
+ * needed (the plan shows how), never as "unlikely".
+ */
+export function chanceWord(p: number): { word: string; tone: 'a' | 'b' | 'c'; showPct: boolean } {
+  if (p >= 0.9) return { word: 'On track 🎉', tone: 'a', showPct: true };
+  if (p >= 0.65) return { word: 'Looking good', tone: 'a', showPct: true };
+  if (p >= 0.35) return { word: 'Within reach', tone: 'b', showPct: true };
+  if (p >= 0.1) return { word: 'Needs a push 💪', tone: 'c', showPct: false };
+  return { word: 'Needs a big push 💪', tone: 'c', showPct: false };
+}
+
+/** Marks rounded up to the next quarter, e.g. 18.1 → 18.25. */
+export const marks = (n: number) => fmt(Math.ceil(n * 4 - 1e-9) / 4, 2);
+
+export function Collapsible({ title, children, defaultOpen = false }: { title: ReactNode; children: ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details className="collapsible" open={defaultOpen}>
+      <summary>
+        <span>{title}</span>
+        <Icon name="chev" />
+      </summary>
+      <div className="collapsible-body">{children}</div>
+    </details>
+  );
+}
 
 function parse(text: string): number | null {
   if (text.trim() === '') return null;
@@ -29,10 +56,12 @@ interface NumberFieldProps {
   label?: string;
   /** Replace an empty field with this on blur. */
   fallback?: number;
+  /** Leave out of the Tab / phone-keyboard "next" order. */
+  skipTab?: boolean;
 }
 
 /** Number input that lets you type freely ("12.", "") and commits parsed values as you go. */
-export function NumberField({ value, onChange, min, max, step, placeholder, className, label, fallback }: NumberFieldProps) {
+export function NumberField({ value, onChange, min, max, step, placeholder, className, label, fallback, skipTab }: NumberFieldProps) {
   const [text, setText] = useState(value === null ? '' : String(value));
   const focused = useRef(false);
 
@@ -48,6 +77,7 @@ export function NumberField({ value, onChange, min, max, step, placeholder, clas
       type="text"
       inputMode="decimal"
       aria-label={label}
+      tabIndex={skipTab ? -1 : undefined}
       value={text}
       placeholder={placeholder}
       step={step}
@@ -105,8 +135,24 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label: string;
 }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
+
+  // A highlight that slides to the chosen option.
+  useLayoutEffect(() => {
+    const measure = () => {
+      const btn = wrap.current?.querySelector<HTMLButtonElement>('button[aria-checked="true"]');
+      setThumb(btn ? { left: btn.offsetLeft, width: btn.offsetWidth } : null);
+    };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (ro && wrap.current) ro.observe(wrap.current);
+    return () => ro?.disconnect();
+  }, [value, options.length]);
+
   return (
-    <div className="seg" role="radiogroup" aria-label={label}>
+    <div className="seg" role="radiogroup" aria-label={label} ref={wrap}>
+      {thumb && <span className="seg-thumb" style={{ transform: `translateX(${thumb.left}px)`, width: thumb.width }} aria-hidden />}
       {options.map((o) => (
         <button
           key={o.value}
@@ -123,15 +169,12 @@ export function Segmented<T extends string>({
   );
 }
 
-/** Internal progress: solid = secured, lighter = projected, track = max. */
-export function InternalBar({ secured, projected, maxPossible, max }: { secured: number; projected: number; maxPossible: number; max: number }) {
+/** Expected internal marks as a share of the internal max. */
+export function InternalBar({ value, max }: { value: number; max: number }) {
   if (max <= 0) return null;
-  const w = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
   return (
     <div className="ibar" aria-hidden>
-      <div className="ibar-max" style={{ width: w(maxPossible) }} />
-      <div className="ibar-proj" style={{ width: w(projected) }} />
-      <div className="ibar-sec" style={{ width: w(secured) }} />
+      <div className="ibar-sec" style={{ width: `${Math.max(0, Math.min(100, (value / max) * 100))}%` }} />
     </div>
   );
 }

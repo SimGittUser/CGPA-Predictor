@@ -1,284 +1,343 @@
-import { useState } from 'react';
-import { COURSE_TYPES } from '../lib/grading';
-import { TEMPLATES, newSubject, subjectsFromTemplate } from '../lib/factory';
-import { cgpaWith, pastTotals, planUniform, requirements, requiredSgpaForCgpa, type Simulation, type SubjectModel } from '../lib/predict';
+import type { ReactNode } from 'react';
+import { cgpaWith, pastTotals, type AimPlan, type Simulation, type SubjectModel } from '../lib/predict';
 import type { AppState } from '../lib/types';
+import { AimLine } from './Aim';
+import { AnimatedNumber } from './motion';
+
+const f2 = (n: number) => n.toFixed(2);
+import { CgpaExplainer, GoalPair } from './Goal';
 import { SgpaHistogram } from './SgpaHistogram';
-import { Card, GradeChip, Icon, InternalBar, NumberField, Segmented, fmt, pct } from './ui';
+import { Card, GradeChip, InternalBar, Icon, Segmented, chanceWord, fmt, pct } from './ui';
 
 interface Props {
   state: AppState;
   models: SubjectModel[];
   sim: Simulation;
+  plan: AimPlan;
+  targetSgpa: number;
   update: (fn: (s: AppState) => AppState) => void;
   open: (id: string) => void;
 }
 
-export function Overview({ state, models, sim, update, open }: Props) {
-  const graded = models.filter((m) => !m.subject.excluded);
-  if (!state.subjects.length) return <EmptyState update={update} open={open} />;
+export function ChanceBadge({ p }: { p: number }) {
+  const c = chanceWord(p);
+  return (
+    <span key={c.word} className={`badge pop tone-${c.tone}`}>
+      {c.word}
+      {c.showPct && <> · {pct(p)} chance</>}
+    </span>
+  );
+}
 
+/** "MST 1: 14/20, Practical 1: 28/30" — what the prediction is based on. */
+export function basedOn(m: SubjectModel, limit = 3): string {
+  const filled = m.subject.components.flatMap((c) => c.entries.filter((e) => e.obtained !== null));
+  const shown = filled.slice(0, limit).map((e) => `${e.label} ${fmt(e.obtained!, 2)}/${e.max}`);
+  return shown.join(', ') + (filled.length > limit ? ` +${filled.length - limit} more` : '');
+}
+
+const showCgpaGoal = (state: AppState) => state.targetMode === 'cgpa' && pastTotals(state.pastSemesters).credits > 0;
+
+export function Overview({ state, models, sim, plan, targetSgpa, update, open }: Props) {
+  if (!state.subjects.length) {
+    return (
+      <div className="stack">
+        <Card className="empty">
+          <h2>No subjects yet</h2>
+          <p className="muted">Upload a screenshot of your marks from CUIMS and we'll set everything up, or add subjects one by one.</p>
+          <div className="empty-actions">
+            <a className="btn primary big" href="#/import">
+              📷 Upload a screenshot
+            </a>
+            <a className="btn big" href="#/add">
+              <Icon name="plus" /> Add a subject by hand
+            </a>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const graded = models.filter((m) => !m.subject.excluded);
   const credits = sim.credits;
   const past = pastTotals(state.pastSemesters);
-  const targetSgpa =
-    state.targetMode === 'cgpa' ? requiredSgpaForCgpa(state.pastSemesters, state.target, credits) : state.target;
   const median = sim.quantile(0.5);
-  const safePlan = planUniform(graded, targetSgpa, true);
-  const likelyPlan = planUniform(graded, targetSgpa, false);
-  const noData = models.filter((m) => !m.internal.hasData && m.subject.internalMax > 0 && m.subject.expectedExternalPct === null).length;
+  const anyMarks = models.some((m) => m.internal.hasData);
+  const cgpaAt = (sgpa: number) => cgpaWith(state.pastSemesters, sgpa, credits);
 
   return (
     <div className="stack">
+      <a className="upload-bar" href="#/import">
+        <span className="upload-bar-icon" aria-hidden>
+          📷
+        </span>
+        <span>
+          <b>{anyMarks ? 'Got new marks?' : 'Add your marks the quick way'}</b>
+          <span className="small muted">Upload a screenshot from CUIMS and we'll fill them in</span>
+        </span>
+        <Icon name="chev" />
+      </a>
+
       <Card className="summary">
         <div className="summary-top">
           <div>
-            <div className="eyebrow">Predicted SGPA</div>
-            <div className="hero">{credits ? fmt(median, 2) : '–'}</div>
-            <div className="muted small">
-              Likely between <b>{fmt(sim.quantile(0.1), 2)}</b> and <b>{fmt(sim.quantile(0.9), 2)}</b> · {credits} credits
+            <div className="eyebrow">{anyMarks ? 'Your expected SGPA' : 'Your expected SGPA (rough guess)'}</div>
+            <div className="hero">{credits ? <AnimatedNumber value={median} format={f2} /> : '–'}</div>
+            <div className="muted">
+              Most likely between <b>{fmt(sim.quantile(0.1), 2)}</b> and <b>{fmt(sim.quantile(0.9), 2)}</b>
             </div>
             {past.cgpa !== null && (
-              <div className="muted small">
-                CGPA after this semester ≈ <b>{fmt(cgpaWith(state.pastSemesters, median, credits), 2)}</b> (now {fmt(past.cgpa, 2)})
+              <div className="muted">
+                CGPA {fmt(past.cgpa, 2)} → about{' '}
+                <b>
+                  <AnimatedNumber value={cgpaAt(median)} format={f2} />
+                </b>
               </div>
             )}
           </div>
-          <div className="target">
-            <div className="target-row">
-              <Segmented
-                label="Target type"
-                value={state.targetMode}
-                options={[
-                  { value: 'sgpa', label: 'SGPA' },
-                  { value: 'cgpa', label: 'CGPA' },
-                ]}
-                onChange={(v) => update((s) => ({ ...s, targetMode: v }))}
-              />
-              <NumberField
-                label="Target"
-                className="target-input"
-                value={state.target}
-                min={0}
-                max={10}
-                fallback={8}
-                onChange={(v) => v !== null && update((s) => ({ ...s, target: v }))}
-              />
-            </div>
-            {state.targetMode === 'cgpa' && (
-              <div className="muted small">
-                {past.credits ? (
-                  <>Needs SGPA <b>{fmt(targetSgpa, 2)}</b> this semester</>
-                ) : (
-                  <>Add past semesters in the CGPA tab</>
-                )}
-              </div>
-            )}
-            <div className="chance">
-              <span className="chance-num">{targetSgpa > 10 ? '0%' : pct(sim.chanceAtLeast(targetSgpa))}</span>
-              <span className="muted small">chance of reaching it</span>
-            </div>
+          <div className="goal">
+            <span className="goal-label">My goal</span>
+            <GoalPair
+              size="small"
+              past={state.pastSemesters}
+              credits={credits}
+              goal={{ mode: state.targetMode, target: state.target }}
+              onChange={(g) => g.target !== null && update((s) => ({ ...s, targetMode: g.mode, target: g.target }))}
+            />
+            <ChanceBadge p={targetSgpa > 10 ? 0 : sim.chanceAtLeast(targetSgpa)} />
+            <span className="small muted">
+              {targetSgpa <= 10 && sim.chanceAtLeast(targetSgpa) >= 0.35 ? 'if you keep scoring like you have' : 'Your plan below shows how to get there'}
+            </span>
           </div>
         </div>
-
-        <SgpaHistogram sgpa={sim.sgpa} target={targetSgpa <= 10 ? targetSgpa : null} />
-
-        <div className="plan">
-          {safePlan.x === null && likelyPlan.x !== null ? (
-            <p>
-              <span className="plan-num">{Math.ceil(likelyPlan.x * 100)}%</span> in every external reaches <b>{fmt(targetSgpa, 2)}</b> if cutoffs land
-              where they usually do. No score guarantees it with {noData ? 'the internals assumed so far' : 'your current internals'}.
-            </p>
-          ) : safePlan.x === null ? (
-            <p>
-              <b>{fmt(targetSgpa, 2)}</b> isn't reachable with {noData ? 'the internals assumed so far' : 'your current internals'}, even with full marks in every
-              external. The best
-              you can count on is <b>{fmt(safePlan.maxSgpa, 2)}</b> (or {fmt(likelyPlan.maxSgpa, 2)} if cutoffs land where they usually do).
-            </p>
-          ) : (
-            <>
-              <p>
-                <span className="plan-num">{Math.ceil(safePlan.x * 100)}%</span> in every external gets you to{' '}
-                <b>{fmt(targetSgpa, 2)}</b>, even if cutoffs come out on the high side.
-              </p>
-              {likelyPlan.x !== null && likelyPlan.x < safePlan.x - 0.005 && (
-                <p className="muted small">
-                  At typical cutoffs, {Math.ceil(likelyPlan.x * 100)}% should be enough.
-                </p>
-              )}
-              <div className="plan-grades">
-                {graded.map((m) => (
-                  <span key={m.subject.id} className="plan-grade" title={m.subject.name}>
-                    <GradeChip grade={safePlan.grades.get(m.subject.id) ?? null} size="sm" />
-                    <span className="small">{shortName(m.subject.name)}</span>
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-        {noData > 0 && (
-          <p className="note small">
-            {noData} subject{noData > 1 ? 's have' : ' has'} no marks yet, so they're assumed at 80% in internals and externals.
-          </p>
-        )}
+        <CgpaExplainer past={state.pastSemesters} credits={credits} sgpa={targetSgpa <= 10 ? targetSgpa : null} />
       </Card>
 
+      <PlanCard state={state} graded={graded} plan={plan} targetSgpa={targetSgpa} credits={credits} open={open} update={update} />
+
+      <div className="insights">
+        <Card className="insight">
+          <h3>Your CGPA</h3>
+          {past.cgpa !== null ? (
+            <>
+              <div className="cgpa-flow">
+                <div>
+                  <span className="small muted">Now</span>
+                  <b>{fmt(past.cgpa, 2)}</b>
+                </div>
+                <span className="cgpa-arrow" aria-hidden>
+                  →
+                </span>
+                <div>
+                  <span className="small muted">After this semester</span>
+                  <b className={cgpaAt(median) >= past.cgpa ? 'up' : ''}>
+                    <AnimatedNumber value={cgpaAt(median)} format={f2} />
+                  </b>
+                </div>
+              </div>
+              <p className="small muted">
+                Most likely between {fmt(cgpaAt(sim.quantile(0.1)), 2)} and {fmt(cgpaAt(sim.quantile(0.9)), 2)}, if you keep scoring like you have.
+              </p>
+            </>
+          ) : (
+            <p className="muted">
+              Add your CGPA so far to plan for a CGPA goal.{' '}
+              <a className="link" href="#/cgpa">
+                Add it
+              </a>
+            </p>
+          )}
+        </Card>
+
+        <Card className="insight">
+          <h3>What your SGPA could be</h3>
+          <SgpaHistogram sgpa={sim.sgpa} target={targetSgpa <= 10 ? targetSgpa : null} />
+        </Card>
+      </div>
+
       <div className="section-head">
-        <h2>Subjects</h2>
-        <span className="muted small">Tap a subject to enter marks</span>
+        <h2>Subject by subject</h2>
+        <span className="muted small">Tap one to see or change marks</span>
       </div>
       <ul className="subject-list">
         {models.map((m) => (
           <SubjectRow key={m.subject.id} m={m} sim={sim} onOpen={() => open(m.subject.id)} />
         ))}
       </ul>
-      <AddSubjectBar update={update} open={open} />
+      <a className="btn" href="#/add">
+        <Icon name="plus" /> Add a subject by hand
+      </a>
     </div>
   );
 }
 
-function shortName(name: string) {
-  const words = name.replace(/[,&-]/g, ' ').split(/\s+/).filter(Boolean);
-  if (name.length <= 14) return name;
-  return words
-    .filter((w) => !/^(and|of|for|the)$/i.test(w))
-    .map((w) => (/^[IVX]+$/.test(w) || /^\d+$/.test(w) ? w : w[0].toUpperCase()))
-    .join('');
+// ---- The plan: what to aim for in the next MST and the end-sem ------------------------
+
+function PlanCard({
+  state,
+  graded,
+  plan,
+  targetSgpa,
+  credits,
+  open,
+  update,
+}: {
+  state: AppState;
+  graded: SubjectModel[];
+  plan: AimPlan;
+  targetSgpa: number;
+  credits: number;
+  open: (id: string) => void;
+  update: Props['update'];
+}) {
+  const hasPast = pastTotals(state.pastSemesters).credits > 0;
+  const goalCgpa = hasPast ? cgpaWith(state.pastSemesters, targetSgpa, credits) : targetSgpa;
+  // Name the goal both ways: what this semester needs and where it takes the CGPA.
+  const goal = !hasPast
+    ? `an SGPA of ${fmt(targetSgpa, 2)}`
+    : targetSgpa > 10
+      ? `a CGPA of ${fmt(state.target ?? 0, 2)}`
+      : `SGPA ${fmt(targetSgpa, 2)} (CGPA ${fmt(goalCgpa, 2)})`;
+  // The most this semester can give, in the same terms as the goal (rounded down so it's really reachable).
+  const bestGoal = Math.floor((showCgpaGoal(state) ? cgpaWith(state.pastSemesters, plan.maxSgpa, credits) : plan.maxSgpa) * 20) / 20;
+  const Goal = goal[0].toUpperCase() + goal.slice(1);
+  const anyMst = graded.some((m) => (m.internal.mst?.remaining ?? 0) > 0);
+  const guessed = graded.filter((m) => m.subject.internalMax > 0 && !m.internal.hasData).length;
+  const cgpaOf = (sgpa: number) => cgpaWith(state.pastSemesters, sgpa, credits);
+  const showCgpa = hasPast;
+
+  let intro: ReactNode;
+  if (plan.level === null) {
+    intro = (
+      <>
+        <p className="plan-line">
+          {Goal} is a bigger jump than one semester can give, so let's make this one count.{' '}
+          <mark className="highlight">
+            The most you can reach now is <b>SGPA {fmt(Math.floor(plan.maxSgpa * 20) / 20, 2)}</b>
+            {hasPast && (
+              <>
+                {' '}
+                (CGPA <b>{fmt(Math.floor(cgpaWith(state.pastSemesters, plan.maxSgpa, credits) * 20) / 20, 2)}</b>)
+              </>
+            )}
+          </mark>
+          , and every semester after this can take you further. Here's how to get the most out of this one:
+        </p>
+        <button type="button" className="btn primary" onClick={() => update((s) => ({ ...s, target: bestGoal }))}>
+          Make {fmt(bestGoal, 2)} my goal for now
+        </button>
+      </>
+    );
+  } else if (plan.level <= 0) {
+    intro = <p className="plan-line">🎉 Your marks so far already put {goal} in the bag. Just pass what's left.</p>;
+  } else {
+    intro = (
+      <p className="plan-line">
+        Score at least these{anyMst ? ' in your next MST and the end-sem exam' : ' in your end-sem exams'}
+        {plan.safe
+          ? ', and you’ll get there even if this year’s grade cut-offs come out high.'
+          : state.settings.planSafe
+            ? '. These work when the grade cut-offs land where they usually do, so a few extra marks make it safer.'
+            : '. That’s usually enough. A few extra marks make it safer.'}
+      </p>
+    );
+  }
+
+  return (
+    <Card className="plan-card">
+      <div className="plan-head">
+        <h3>🎯 Your plan for {goal}</h3>
+        <Segmented
+          label="How careful should the plan be"
+          value={state.settings.planSafe ? 'safe' : 'usual'}
+          options={[
+            { value: 'safe', label: 'To be safe' },
+            { value: 'usual', label: 'Usually enough' },
+          ]}
+          onChange={(v) => update((s) => ({ ...s, settings: { ...s.settings, planSafe: v === 'safe' } }))}
+        />
+      </div>
+      {intro}
+      {(
+        <ul className="plan-list">
+          {graded.map((m) => {
+            const aim = plan.aims.get(m.subject.id);
+            if (!aim) return null;
+            return (
+              <li key={m.subject.id}>
+                <button type="button" className="plan-row" onClick={() => open(m.subject.id)}>
+                  <GradeChip grade={aim.grade} size="sm" />
+                  <span className="plan-row-main">
+                    <span className="plan-row-name">
+                      {m.subject.name}
+                      {aim.pinned && <span className="pin" title="You picked this grade"> 📌</span>}
+                    </span>
+                    <AimLine m={m} p={aim.p} />
+                    {!m.internal.hasData && m.subject.internalMax > 0 && <span className="small muted">No marks yet, so this is a guess</span>}
+                  </span>
+                  <Icon name="chev" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {plan.level !== null && plan.level > 0 && (
+        <p className="small muted plan-foot">
+          These grades add up to SGPA{' '}
+          <b key={plan.sgpa} className="pop">
+            {fmt(plan.sgpa, 2)}
+          </b>
+          {showCgpa && <> → CGPA <b>{fmt(cgpaOf(plan.sgpa), 2)}</b></>}. We assume the rest of your internals (practicals, assignments) go like they have so
+          far.{guessed > 0 && ` ${guessed} subject${guessed > 1 ? 's have' : ' has'} no marks yet, so we guessed 80% there.`} Tap a subject to try other
+          combinations.
+        </p>
+      )}
+    </Card>
+  );
 }
 
 function SubjectRow({ m, sim, onOpen }: { m: SubjectModel; sim: Simulation; onOpen: () => void }) {
   const s = m.subject;
   const out = sim.perSubject.get(s.id);
-  const target = s.targetGrade;
-  const req = target ? requirements(m).find((r) => r.grade === target) : null;
-  const i = m.internal;
+
+  let status: ReactNode;
+  if (s.excluded) status = <>Pass/fail only. Doesn't affect SGPA</>;
+  else if (s.internalMax === 0) status = <>Final exam only</>;
+  else if (!m.internal.hasData) status = <span className="accent">No marks yet. Tap to add →</span>;
+  else if (s.internalMode === 'direct') status = <>Internal total {fmt(m.internal.projected, 1)}/{s.internalMax}</>;
+  else
+    status = (
+      <>
+        Internal ≈ {fmt(m.internal.projected, 1)}/{s.internalMax} · from {m.internal.count} mark{m.internal.count === 1 ? '' : 's'} ({basedOn(m, 2)})
+      </>
+    );
+
   return (
     <li>
       <button type="button" className="subject-row" onClick={onOpen}>
-        <GradeChip grade={out?.mostLikely ?? null} dim={s.excluded} />
+        <GradeChip grade={s.excluded ? null : out?.mostLikely ?? null} />
         <div className="subject-main">
           <div className="subject-name">{s.name}</div>
           <div className="subject-meta">
-            <span>{fmt(s.credits, 1)} cr</span>
-            <span>
-              {s.internalMax}/{s.externalMax}
-            </span>
-            {s.excluded ? (
-              <span>Not in SGPA</span>
-            ) : out ? (
-              <span>{pct(out.dist[out.mostLikely])} likely</span>
-            ) : null}
-          </div>
-          {s.internalMax > 0 && (
-            <div className="subject-internal">
-              {i.hasData && <InternalBar secured={i.secured} projected={i.projected} maxPossible={i.maxPossible} max={s.internalMax} />}
-              <span className="small muted">
-                {i.hasData ? (
-                  <>
-                    Internal ≈ <b>{fmt(i.projected, 1)}</b>/{s.internalMax}
-                    {i.completion < 0.999 && <> · {Math.round(i.completion * 100)}% entered</>}
-                  </>
-                ) : (
-                  <>No internal marks yet</>
-                )}
+            {!s.excluded && out && (m.internal.hasData || s.internalMax === 0) && (
+              <span>
+                Likely <b>{out.mostLikely}</b>
               </span>
+            )}
+            <span>
+              {fmt(s.credits, 1)} credit{s.credits === 1 ? '' : 's'}
+            </span>
+          </div>
+          {m.internal.hasData && s.internalMax > 0 && !s.excluded && (
+            <div className="row-bar">
+              <InternalBar value={m.internal.projected} max={s.internalMax} />
             </div>
           )}
+          <div className="subject-status small muted">{status}</div>
         </div>
-        <div className="subject-side">
-          {target && req && out ? (
-            <>
-              {req.safeExternal <= s.externalMax || req.likelyExternal > s.externalMax ? (
-                <>
-                  <div className="small muted">For {target}, need</div>
-                  <div className="side-need">{needText(req.safeExternal, s.externalMax)}</div>
-                </>
-              ) : (
-                <>
-                  <div className="small muted">For {target}, typically</div>
-                  <div className="side-need">{needText(req.likelyExternal, s.externalMax)}</div>
-                </>
-              )}
-              <div className="small muted">{pct(out.atLeast[target])} chance</div>
-            </>
-          ) : (
-            <span className="small muted side-hint">{s.excluded ? '' : 'Set a target'}</span>
-          )}
-          <Icon name="chev" />
-        </div>
+        <Icon name="chev" />
       </button>
     </li>
-  );
-}
-
-export function needText(need: number, max: number) {
-  if (need <= 0) return 'Secured';
-  if (need > max + 1e-9) return 'Out of reach';
-  return `${fmt(Math.ceil(need * 4) / 4, 2)}/${max}`;
-}
-
-function AddSubjectBar({ update, open }: { update: Props['update']; open: Props['open'] }) {
-  const [showTemplates, setShowTemplates] = useState(false);
-  return (
-    <div className="add-bar">
-      <button
-        type="button"
-        className="btn primary"
-        onClick={() => {
-          const s = newSubject();
-          update((st) => ({ ...st, subjects: [...st.subjects, s] }));
-          open(s.id);
-        }}
-      >
-        <Icon name="plus" /> Add subject
-      </button>
-      <button type="button" className="btn" onClick={() => setShowTemplates((v) => !v)}>
-        Add from a template
-      </button>
-      {showTemplates && <TemplateList update={update} onDone={() => setShowTemplates(false)} />}
-    </div>
-  );
-}
-
-function TemplateList({ update, onDone }: { update: Props['update']; onDone: () => void }) {
-  return (
-    <div className="templates">
-      {TEMPLATES.map((t) => (
-        <button
-          type="button"
-          key={t.name}
-          className="template"
-          onClick={() => {
-            update((s) => ({ ...s, subjects: [...s.subjects, ...subjectsFromTemplate(t)] }));
-            onDone();
-          }}
-        >
-          <b>{t.name}</b>
-          <span className="small muted">{t.subjects.map((x) => shortName(x.name)).join(' · ')}</span>
-          <span className="small muted">{t.description}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function EmptyState({ update, open }: { update: Props['update']; open: Props['open'] }) {
-  return (
-    <div className="stack">
-      <Card className="empty">
-        <h2>Predict your grades before results day</h2>
-        <p className="muted">
-          Enter your internal marks as they come in: MSTs, assignments, worksheets, quizzes. The app works out your internal total,
-          the chance of each grade, and the minimum external score you need for the grade you want.
-        </p>
-        <ol className="steps muted">
-          <li>Add your subjects with credits and their internal/external split ({COURSE_TYPES.hybrid.label}, {COURSE_TYPES.practical.label}…).</li>
-          <li>Add each assessment head and its marks. Add more marks every week and edit old ones any time.</li>
-          <li>Set a target SGPA or CGPA and see what you need in the externals.</li>
-        </ol>
-        <p className="muted small">Everything is saved automatically in this browser.</p>
-      </Card>
-      <AddSubjectBar update={update} open={open} />
-    </div>
   );
 }

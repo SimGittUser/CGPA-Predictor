@@ -1,4 +1,4 @@
-import { initialState } from './factory';
+import { MSTS_PER_SEMESTER, classify, initialState } from './factory';
 import type { AppState } from './types';
 
 export const STORAGE_KEY = 'cu-grade-predictor:v1';
@@ -13,11 +13,13 @@ export function normalize(raw: unknown): AppState {
     ...base,
     ...r,
     version: 1,
+    setupDone: r.setupDone ?? r.subjects.length > 0,
     subjects: r.subjects.map((s) => ({
       ...s,
       components: (s.components ?? []).map((c) => ({
         ...c,
-        expectedCount: c.expectedCount ?? null,
+        // Older saves didn't record that there are always two MSTs.
+        expectedCount: c.expectedCount ?? (classify(c.name).kind === 'mst' ? MSTS_PER_SEMESTER : null),
         bestOf: c.bestOf ?? null,
         entries: c.entries ?? [],
       })),

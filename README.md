@@ -1,53 +1,20 @@
 # CU Grade Predictor
 
-Predict your Chandigarh University grades, SGPA and CGPA from the internal marks you have so far, and find out the minimum external score you need for the grade you want.
-
-![Semester overview with predicted SGPA and simulated spread](docs/screenshots/overview.png)
-
-## Why
-
-CU grades relatively: the cutoff for an A moves with how the class performs. A simple percentage calculator can't tell you what grade 78/100 will get. This app estimates the cutoffs from real result sheets and treats them as uncertain, so it gives you **probabilities** rather than a single guess.
-
-## Features
-
-- **Predicted SGPA** with a likely range and the chance of reaching your target SGPA or CGPA
-- **Per-subject grade odds**, such as "B+ 52% likely"
-- **Minimum external marks** for every grade, both at typical cutoffs and at a "safe" level that clears the cutoff 95% of the time
-- **Internal-mark tracking** by assessment head (MSTs, assignments, worksheets, attendance), with projections for tests you haven't taken yet
-- **CU course codes understood:** `xxH` is detected as 75/25, `xxP` as 60/40 and `xxT` as 50/50, plus templates for first-year CSE subject sets
-- **CGPA planner** that uses your completed semesters
-- **Private:** marks stay in your browser's `localStorage`, and you can export or import a JSON backup
-
-![Required external marks per grade for one subject](docs/screenshots/required-externals.png)
-
-*Screenshots use sample marks.*
-
-## How it works
-
-1. **Internal marks.** Each assessment head contributes its weight. Unfinished heads are projected at your running average.
-2. **Grade cutoffs.** Each grade's cutoff on the total out of 100 is modelled as a normal distribution. The centre and spread of each one were fitted to real 2025-batch results (`src/lib/grading.ts`).
-3. **Monte Carlo.** 4,000 simulated semesters draw your remaining internals, your external scores and the class cutoffs. The share of runs that land on each grade gives the odds, and the spread of the simulated SGPAs gives the range.
-
-**Calibration check:** with the default cutoffs, the model reproduces **29 of 36** real graded results exactly (81%) and is never more than one grade off. It also reproduces the exact SGPA on all four sample result sheets. These checks run as unit tests.
-
-## Run locally
+Predicts Chandigarh University grades, SGPA and CGPA from internal marks entered during the semester, and works out the minimum external score needed for a target grade.
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm test         # model tests against real result sheets
-npm run build    # static site in dist/, deployable to Vercel, Netlify or GitHub Pages
+npm test         # model tests (reproduces real SGPAs from past result sheets)
+npm run build    # static site in dist/ — deploy anywhere (Vercel, Netlify, GitHub Pages)
 ```
 
-Built with React 19, TypeScript and Vite. The prediction model has no other dependencies.
+- `src/lib/ocr.ts` + `src/lib/importer.ts`: the screenshot import. Tesseract.js reads CUIMS marks screenshots on the device (single-block mode keeps table rows together). The importer turns rows like "MST-1 Hybrid 20 15" into mark boxes and flags low-confidence or impossible numbers for the student to check. `importer.test.ts` uses real OCR output from a CUIMS screenshot.
+- `src/lib/factory.ts`: the predefined templates. `TEMPLATES` holds the semester subject lists shown on first visit, and `INTERNAL_TEMPLATES` holds the mark boxes each subject starts with (MSTs, assignments, worksheets…) and what each part is worth. **Check those weights against CU's real scheme.** Edit them once here and every student gets the fix.
+- `src/lib/grading.ts`: grade points, estimated relative-grading cutoffs, and the past results they were calibrated on
+- `src/lib/internal.ts`: internal-mark totals from assessment heads and their entries
+- `src/lib/predict.ts`: Monte Carlo grade/SGPA odds, the MST + end-sem planner (`planAims`: picks a grade per subject so the SGPA/CGPA goal is met while keeping the highest score any subject needs as low as possible), and CGPA maths
+- `src/lib/internal.ts`: internal marks from what's actually entered. Only the MST count (2) is assumed; everything else changes per semester
+- Data is saved to `localStorage` on every change; the ⋯ menu exports and imports JSON backups.
 
-## Improving accuracy
-
-To recalibrate the model:
-1. Add rows from new result sheets to `CALIBRATION` in `src/lib/grading.ts`.
-2. Adjust `BASE_CUTOFFS` there.
-3. Run `npm test` to see how many real grades the new cutoffs reproduce.
-
-## Disclaimer
-
-This is an unofficial estimate and is not affiliated with Chandigarh University. Actual cutoffs vary by subject and by year.
+To recalibrate, add rows to `CALIBRATION` in `grading.ts` and adjust `BASE_CUTOFFS`. The tests show how many real grades the cutoffs reproduce.

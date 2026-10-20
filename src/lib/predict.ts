@@ -8,8 +8,11 @@ export const EXTERNAL_SD: Record<Uncertainty, number> = { low: 0.06, medium: 0.1
 /** "To be safe" = the cutoff lands at or below this line 95% of the time. */
 export const SAFE_Z = 1.645;
 
-/** Spread of the internal marks still to come (fraction of the marks left). */
-const REMAINING_INTERNAL_SD = 0.12;
+/**
+ * How far your final internal % may drift from your average so far, with no marks in.
+ * It narrows as marks come in (÷√(marks+1)): one MST tells us less than six tests do.
+ */
+const INTERNAL_SPREAD = 0.15;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -34,26 +37,8 @@ export function subjectModel(s: Subject, uncertainty: Uncertainty): SubjectModel
     expectedExternal: s.expectedExternalPct === null ? auto : clamp(s.expectedExternalPct / 100, 0, 1),
     expectedIsAuto: s.expectedExternalPct === null,
     externalSd: EXTERNAL_SD[uncertainty],
-    internalSd: (internal.maxPossible - internal.secured) * REMAINING_INTERNAL_SD,
+    internalSd: s.internalMode === 'direct' && internal.hasData ? 0 : (s.internalMax * INTERNAL_SPREAD) / Math.sqrt(internal.count + 1),
   };
-}
-
-export interface GradeRequirement {
-  grade: GradeLetter;
-  cutoff: number;
-  safeCutoff: number;
-  /** External marks needed if the cutoff lands where we expect. */
-  likelyExternal: number;
-  /** External marks needed to clear the cutoff 95% of the time. */
-  safeExternal: number;
-}
-
-export function requirements(m: SubjectModel): GradeRequirement[] {
-  const I = m.internal.projected;
-  return m.cutoffs.map((c) => {
-    const safeCutoff = c.mu + SAFE_Z * c.sigma;
-    return { grade: c.grade, cutoff: c.mu, safeCutoff, likelyExternal: c.mu - I, safeExternal: safeCutoff - I };
-  });
 }
 
 // ---- Monte Carlo -----------------------------------------------------------
@@ -105,7 +90,7 @@ export function simulate(models: SubjectModel[], runs = 4000, seed = 20250101): 
     let pts = 0;
     for (const m of models) {
       const { internal, subject: s } = m;
-      const I = clamp(internal.projected + gaussian(rand) * m.internalSd, internal.secured, internal.maxPossible);
+      const I = clamp(internal.projected + gaussian(rand) * m.internalSd, 0, s.internalMax);
       const E = s.externalMax * clamp(m.expectedExternal + gaussian(rand) * m.externalSd, 0, 1);
       const grade = gradeForTotal(I + E, m.cutoffs, gaussian(rand));
       tallies.get(s.id)![grade]++;
@@ -151,51 +136,100 @@ export function simulate(models: SubjectModel[], runs = 4000, seed = 20250101): 
   };
 }
 
-// ---- Planner ---------------------------------------------------------------
+// ---- Planner: what to aim for in the next MST and the end-sem exam -----------------
 
-/** Grade each subject gets if you score fraction `x` of every external. */
-export function gradesAtUniform(models: SubjectModel[], x: number, safe: boolean): Map<string, GradeLetter> {
-  const out = new Map<string, GradeLetter>();
-  for (const m of models) {
-    const total = m.internal.projected + m.subject.externalMax * x;
-    out.set(m.subject.id, gradeForTotal(total, m.cutoffs, safe ? SAFE_Z : 0));
-  }
-  return out;
+/** Total (out of 100) a grade needs: where the cut-off usually lands, or high enough to hold 95% of the time. */
+export const cutoffTotal = (c: Cutoff, safe: boolean) => c.mu + (safe ? SAFE_Z * c.sigma : 0);
+
+/**
+ * The single score (as a fraction) to hit in every remaining MST *and* the end-sem exam to reach
+ * `total`, with the rest of the internals going like they have so far.
+ * ≤ 0 means it's already secured; > 1 means it isn't possible.
+ */
+export function effortFor(m: SubjectModel, total: number): number {
+  const base = m.internal.mst?.base ?? m.internal.projected;
+  const slope = m.internal.mst?.slope ?? 0;
+  const per = slope + m.subject.externalMax;
+  if (per <= 0) return total <= base ? -Infinity : Infinity;
+  return (total - base) / per;
 }
 
-export function sgpaOf(models: SubjectModel[], grades: Map<string, GradeLetter>): number {
-  let pts = 0;
-  let cr = 0;
-  for (const m of models) {
-    if (m.subject.excluded) continue;
-    pts += GRADE_POINTS[grades.get(m.subject.id) ?? 'F'] * m.subject.credits;
-    cr += m.subject.credits;
-  }
-  return cr ? pts / cr : 0;
+/** End-sem marks needed to reach `total` if the remaining MSTs score `mstFrac` (0–1). */
+export function externalNeeded(m: SubjectModel, total: number, mstFrac: number): number {
+  const base = m.internal.mst?.base ?? m.internal.projected;
+  return total - base - (m.internal.mst?.slope ?? 0) * mstFrac;
 }
 
-export interface UniformPlan {
-  /** Lowest external fraction that reaches the target, or null if even 100% doesn't. */
-  x: number | null;
+export interface GradeAim {
+  grade: GradeLetter;
+  /** See effortFor. */
+  p: number;
+}
+
+export function gradeAims(m: SubjectModel, safe: boolean): GradeAim[] {
+  return m.cutoffs.map((c) => ({ grade: c.grade, p: effortFor(m, cutoffTotal(c, safe)) }));
+}
+
+export interface Aim extends GradeAim {
+  /** The student picked this grade themselves. */
+  pinned: boolean;
+}
+
+export interface AimPlan {
+  aims: Map<string, Aim>;
+  /** Highest score any subject needs (0–1), or null if the target can't be reached. */
+  level: number | null;
+  /** SGPA the planned grades add up to. */
   sgpa: number;
-  grades: Map<string, GradeLetter>;
+  /** Best SGPA reachable with full marks in everything left. */
   maxSgpa: number;
+  /** Planned against cut-offs that hold 95% of the time (true) or where they usually land. */
+  safe: boolean;
 }
 
-export function planUniform(models: SubjectModel[], target: number, safe: boolean): UniformPlan {
-  const best = gradesAtUniform(models, 1, safe);
-  const maxSgpa = sgpaOf(models, best);
-  if (maxSgpa < target - 0.005) return { x: null, sgpa: maxSgpa, grades: best, maxSgpa };
+/**
+ * Pick a grade for each subject so the SGPA reaches `target` while asking for the lowest
+ * possible score in the subject that needs the most: the fairest single bar to clear.
+ * Each subject then gets the lowest MST/end-sem aim that still earns its grade.
+ * Grades the student picked themselves are kept as they are.
+ */
+export function planAims(models: SubjectModel[], target: number, safe: boolean): AimPlan {
+  const graded = models.filter((m) => !m.subject.excluded);
+  const table = new Map(graded.map((m) => [m.subject.id, gradeAims(m, safe)]));
+  const credits = graded.reduce((a, m) => a + m.subject.credits, 0);
+
+  const aimAt = (m: SubjectModel, level: number): Aim => {
+    const list = table.get(m.subject.id)!;
+    const pinned = m.subject.targetGrade && list.find((a) => a.grade === m.subject.targetGrade);
+    if (pinned) return { ...pinned, pinned: true };
+    const a = list.find((x) => x.p <= level + 1e-9);
+    return a ? { ...a, pinned: false } : { grade: 'F', p: 0, pinned: false };
+  };
+  const at = (level: number) => {
+    const aims = new Map(graded.map((m) => [m.subject.id, aimAt(m, level)]));
+    const pts = graded.reduce((a, m) => a + GRADE_POINTS[aims.get(m.subject.id)!.grade] * m.subject.credits, 0);
+    return { aims, sgpa: credits ? pts / credits : 0 };
+  };
+
+  const best = at(1);
+  if (best.sgpa < target - 0.005) return { aims: best.aims, level: null, sgpa: best.sgpa, maxSgpa: best.sgpa, safe };
   let lo = 0;
   let hi = 1;
-  if (sgpaOf(models, gradesAtUniform(models, 0, safe)) >= target - 0.005) hi = 0;
+  if (at(0).sgpa >= target - 0.005) hi = 0;
   for (let i = 0; i < 40 && hi - lo > 1e-4; i++) {
     const mid = (lo + hi) / 2;
-    if (sgpaOf(models, gradesAtUniform(models, mid, safe)) >= target - 0.005) hi = mid;
+    if (at(mid).sgpa >= target - 0.005) hi = mid;
     else lo = mid;
   }
-  const grades = gradesAtUniform(models, hi, safe);
-  return { x: hi, sgpa: sgpaOf(models, grades), grades, maxSgpa };
+  const plan = at(hi);
+  return { aims: plan.aims, level: hi, sgpa: plan.sgpa, maxSgpa: best.sgpa, safe };
+}
+
+/** Plan to be safe if asked and possible, otherwise plan for a normal year. */
+export function choosePlan(models: SubjectModel[], target: number, preferSafe = true): AimPlan {
+  if (!preferSafe) return planAims(models, target, false);
+  const safe = planAims(models, target, true);
+  return safe.level !== null ? safe : planAims(models, target, false);
 }
 
 // ---- CGPA -------------------------------------------------------------------

@@ -16,7 +16,7 @@ export interface Component {
   id: string;
   name: string;
   weight: number;
-  /** How many of these you expect over the semester (e.g. 2 MSTs, 10 worksheets). null = whatever is entered. */
+  /** How many of these you expect over the semester. null = one per entry box (filled or empty). */
   expectedCount: number | null;
   /** Only the best N count (e.g. best 2 of 3 quizzes). null = all count. */
   bestOf: number | null;
@@ -55,14 +55,19 @@ export type Theme = 'system' | 'light' | 'dark';
 
 export interface AppState {
   version: 1;
+  /** False until the first-time setup has been finished or skipped. */
+  setupDone: boolean;
   semesterName: string;
   subjects: Subject[];
   targetMode: 'sgpa' | 'cgpa';
-  target: number;
+  /** The student's goal; null until they've set one (we never assume it). */
+  target: number | null;
   pastSemesters: PastSemester[];
   settings: {
     uncertainty: Uncertainty;
     theme: Theme;
+    /** Plan against cut-offs that hold 95% of the time (true) or where they usually land. */
+    planSafe: boolean;
   };
   updatedAt: string | null;
 }

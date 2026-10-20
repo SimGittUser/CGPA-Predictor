@@ -1,7 +1,8 @@
 import { newPastSemester } from '../lib/factory';
 import { cgpaWith, pastTotals, requiredSgpaForCgpa, type Simulation } from '../lib/predict';
 import type { AppState, PastSemester } from '../lib/types';
-import { Card, Icon, NumberField, fmt, pct } from './ui';
+import { ChanceBadge } from './Overview';
+import { Card, Icon, NumberField, fmt } from './ui';
 
 interface Props {
   state: AppState;
@@ -19,11 +20,27 @@ export function PastSemesters({ state, sim, update }: Props) {
 
   return (
     <div className="stack">
+      <Card className="summary">
+        <div className="cgpa-stats">
+          <div>
+            <div className="eyebrow">CGPA right now</div>
+            <div className="hero">{past.cgpa === null ? '–' : fmt(past.cgpa, 2)}</div>
+            {past.cgpa === null && <div className="muted small">Add your past results below</div>}
+          </div>
+          <div>
+            <div className="eyebrow">After this semester</div>
+            <div className="hero accent">{credits ? fmt(cgpaWith(state.pastSemesters, median, credits), 2) : '–'}</div>
+            <div className="muted small">if you get the expected SGPA of {fmt(median, 2)}</div>
+          </div>
+        </div>
+      </Card>
+
       <Card>
-        <h3>Completed semesters</h3>
+        <h3>Your past semester results</h3>
         <p className="muted small">
-          Enter the SGPA and graded credits from your result sheet. Leave out Qualified subjects (like Academic &amp; Career Pathway Planning) from credits.
+          Copy the SGPA and credits from each result on CUIMS. In 1st year, each semester is usually 21 to 23 credits. Don't count “Qualified” subjects.
         </p>
+        {state.pastSemesters.length === 0 && <p className="muted">In your 1st semester? You don't have any yet, and that's fine.</p>}
         <div className="past">
           {state.pastSemesters.length > 0 && (
             <div className="past-row past-head small muted" aria-hidden>
@@ -48,61 +65,49 @@ export function PastSemesters({ state, sim, update }: Props) {
           })}
         </div>
         <button type="button" className="btn" onClick={() => setPast((ps) => [...ps, newPastSemester(ps.length + 1)])}>
-          <Icon name="plus" /> Add semester
+          <Icon name="plus" /> Add a past semester
         </button>
       </Card>
 
-      <Card>
-        <div className="istats">
-          <div>
-            <span className="small muted">CGPA so far</span>
-            <b>{past.cgpa === null ? '–' : fmt(past.cgpa, 2)}</b>
+      {past.credits > 0 && (
+        <Card>
+          <h3>Aiming for a CGPA?</h3>
+          <div className="goal-row">
+            <span>I want a CGPA of</span>
+            <NumberField
+              className="target-input"
+              value={target}
+              min={0}
+              max={10}
+              placeholder="8.5"
+              label="CGPA goal"
+              onChange={(v) => v !== null && update((s) => ({ ...s, targetMode: 'cgpa', target: v }))}
+            />
           </div>
-          <div>
-            <span className="small muted">Credits done</span>
-            <b>{fmt(past.credits, 1)}</b>
-          </div>
-          <div>
-            <span className="small muted">This semester (predicted)</span>
-            <b>{credits ? fmt(median, 2) : '–'}</b>
-          </div>
-          <div>
-            <span className="small muted">CGPA after it</span>
-            <b className="accent">{credits ? fmt(cgpaWith(state.pastSemesters, median, credits), 2) : '–'}</b>
-          </div>
-        </div>
-        <p className="muted small">CGPA = total of (SGPA × credits) ÷ total credits, across every semester.</p>
-      </Card>
-
-      <Card>
-        <h3>CGPA target</h3>
-        <div className="target-row">
-          <span>I want a CGPA of</span>
-          <NumberField
-            className="target-input"
-            value={target}
-            min={0}
-            max={10}
-            placeholder="8.5"
-            label="Target CGPA"
-            onChange={(v) => v !== null && update((s) => ({ ...s, targetMode: 'cgpa', target: v }))}
-          />
-        </div>
-        {needed !== null && credits > 0 && (
-          <p>
-            {needed > 10 ? (
-              <>Not reachable this semester. Even a 10 SGPA would leave you at {fmt(cgpaWith(state.pastSemesters, 10, credits), 2)}.</>
-            ) : needed <= 0 ? (
-              <>Already locked in, whatever happens this semester.</>
-            ) : (
-              <>
-                You need an SGPA of <b>{fmt(needed, 2)}</b> this semester ({credits} credits). Current chance: <b>{pct(sim.chanceAtLeast(needed))}</b>.
-              </>
-            )}
-          </p>
-        )}
-        {target === null && <p className="muted small">Setting this switches the target on the main page to CGPA.</p>}
-      </Card>
+          {needed !== null && credits > 0 && (
+            <p>
+              {needed > 10 ? (
+                <>
+                  That's more than one semester can add: even a perfect 10 SGPA takes you to {fmt(cgpaWith(state.pastSemesters, 10, credits), 2)}. A great
+                  semester now still moves you most of the way, and the next one can finish the job.
+                </>
+              ) : needed <= 0 ? (
+                <>You'll stay above that whatever happens this semester.</>
+              ) : (
+                <>
+                  You need an SGPA of <b>{fmt(needed, 2)}</b> this semester. <ChanceBadge p={sim.chanceAtLeast(needed)} />
+                </>
+              )}
+            </p>
+          )}
+          {target === null && <p className="muted small">Type a number and your goal on the “My Subjects” page switches to this CGPA.</p>}
+          {target !== null && (
+            <button type="button" className="link small" onClick={() => update((s) => ({ ...s, targetMode: 'sgpa' }))}>
+              Go back to an SGPA goal
+            </button>
+          )}
+        </Card>
+      )}
     </div>
   );
 }

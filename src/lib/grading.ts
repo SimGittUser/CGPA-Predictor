@@ -23,15 +23,16 @@ export const PASS_MARK = 40;
  *
  * CU grades relatively, so the real cutoffs move with each class. These centres and
  * spreads come from the 2025-batch results in CALIBRATION below:
+ *  - A+: lowest A+ seen 95.5, highest A seen 95.33         → ~95.5, tight
+ *        (Communication Skills-I is the exception: 92.02 got an A+, see KNOWN_SHIFTS)
  *  - A:  lowest A seen 88.93, highest B+ seen 89.25        → ~89.5, tight
  *  - B+: lowest B+ seen 80.74, highest B seen 83.5          → ~82.5
  *  - B:  lowest B seen 72, highest C+ seen 74               → ~73.5
  *  - C+: lowest C+ seen 64 (Soft Skills)                    → ~64
- *  - A+: never observed; a 95.33 still got an A            → ~96, wide
  *  - C, D: no data, extrapolated from the spacing above     → wide
  */
 export const BASE_CUTOFFS: Record<Exclude<GradeLetter, 'F'>, { mu: number; sigma: number }> = {
-  'A+': { mu: 96, sigma: 2 },
+  'A+': { mu: 95.5, sigma: 1.25 },
   A: { mu: 89.5, sigma: 1.25 },
   'B+': { mu: 82.5, sigma: 2 },
   B: { mu: 73.5, sigma: 2.5 },
@@ -63,11 +64,11 @@ export function gradeForTotal(total: number, cutoffs: Cutoff[], z = 0): GradeLet
 }
 
 export const COURSE_TYPES: Record<CourseType, { label: string; internal: number; external: number; hint: string }> = {
-  hybrid: { label: 'Hybrid (75 / 25)', internal: 75, external: 25, hint: 'Codes like 25CSH, 25ECH, 25SPH, 25PCH' },
-  practical: { label: 'Practical (60 / 40)', internal: 60, external: 40, hint: 'Codes like 25CSP, 25ECP, 25PCP, 25TDP' },
-  theory: { label: 'Theory (50 / 50)', internal: 50, external: 50, hint: 'Codes like 25SMT, 25SZT' },
-  external: { label: 'External only (0 / 100)', internal: 0, external: 100, hint: 'e.g. General Proficiency (25GPT)' },
-  custom: { label: 'Custom split', internal: 50, external: 50, hint: 'Set internal and external max yourself' },
+  hybrid: { label: 'Theory + Lab (75 internal + 25 final exam)', internal: 75, external: 25, hint: 'Most 4-credit subjects with a lab, e.g. DSA, Physics. Codes like 25CSH, 25ECH, 25SPH' },
+  practical: { label: 'Lab / Practical (60 internal + 40 final exam)', internal: 60, external: 40, hint: 'Lab-only subjects, e.g. AI Lab, Programming Practice. Codes like 25CSP, 25ECP, 25PCP' },
+  theory: { label: 'Theory only (50 internal + 50 final exam)', internal: 50, external: 50, hint: 'No lab, e.g. Maths, Biology. Codes like 25SMT, 25SZT' },
+  external: { label: 'Final exam only (100 marks)', internal: 0, external: 100, hint: 'No internal marks, e.g. General Proficiency' },
+  custom: { label: 'Something else (I’ll type the marks)', internal: 50, external: 50, hint: 'Type the internal and final-exam marks yourself' },
 };
 
 /** Guess the course type from a CU subject code such as "25CSH-103". */
@@ -100,11 +101,11 @@ export interface CalibrationRow {
   external: number;
   credits: number;
   grade: GradeLetter | 'Qualified';
-  student: 1 | 2;
+  student: 1 | 2 | 3;
   sem: 1 | 2;
 }
 
-/** Real 2025-batch results (two students, two semesters) used to set BASE_CUTOFFS. */
+/** Real 2025-batch results (three students, two semesters each) used to set BASE_CUTOFFS. */
 export const CALIBRATION: CalibrationRow[] = [
   // Student 1, Sem 1 — SGPA 7.86
   { student: 1, sem: 1, code: '25CSH-107', name: 'Logical Thinking & Problem Solving', internal: 62.93, external: 26, credits: 4, grade: 'A' },
@@ -148,9 +149,37 @@ export const CALIBRATION: CalibrationRow[] = [
   { student: 2, sem: 2, code: '25SMT-198', name: 'Mathematics-II', internal: 46.92, external: 37.5, credits: 5, grade: 'B+' },
   { student: 2, sem: 2, code: '25SZT-148', name: 'Biology for Engineers', internal: 45.5, external: 43.75, credits: 3, grade: 'B+' },
   { student: 2, sem: 2, code: '25TDP-151', name: 'SOFT SKILLS - I', internal: 42, external: 30, credits: 1, grade: 'B' },
+  // Student 3, Sem 1 — SGPA 9.67
+  { student: 3, sem: 1, code: '25CSH-107', name: 'Logical Thinking & Problem Solving', internal: 68.27, external: 30, credits: 4, grade: 'A+' },
+  { student: 3, sem: 1, code: '25CST-110', name: 'Academic & Career Pathway Planning', internal: 49, external: 46.25, credits: 1, grade: 'Qualified' },
+  { student: 3, sem: 1, code: '25ECP-103', name: 'Emerging and Disruptive Technologies Workshop', internal: 56.5, external: 34, credits: 2, grade: 'A' },
+  { student: 3, sem: 1, code: '25PCH-110', name: 'Communication Skills-I', internal: 65.77, external: 26.25, credits: 2, grade: 'A+' },
+  { student: 3, sem: 1, code: '25SMT-121', name: 'Mathematics-I', internal: 49.5, external: 50, credits: 5, grade: 'A+' },
+  { student: 3, sem: 1, code: '25SPH-141', name: 'Engineering Physics', internal: 68.56, external: 30, credits: 4, grade: 'A+' },
+  { student: 3, sem: 1, code: '25SPH-143', name: 'Semiconductor Physics and Applications', internal: 63.75, external: 27.75, credits: 3, grade: 'A' },
+  { student: 3, sem: 1, code: '25UCT-103', name: 'Universal Human Values, Ethics and Life Skills-1', internal: 39, external: 45.75, credits: 1, grade: 'B+' },
+  // Student 3, Sem 2 — SGPA 9.43
+  { student: 3, sem: 2, code: '25CSH-103', name: 'Data Structures and Algorithms', internal: 73.5, external: 24.58, credits: 4, grade: 'A+' },
+  { student: 3, sem: 2, code: '25CSP-102', name: 'Design Thinking and Innovation', internal: 52.75, external: 36, credits: 1, grade: 'B+' },
+  { student: 3, sem: 2, code: '25CSP-105', name: 'Programming Practice', internal: 53.5, external: 32, credits: 1, grade: 'B+' },
+  { student: 3, sem: 2, code: '25ECH-101', name: 'Digital Electronics', internal: 72.01, external: 24.58, credits: 4, grade: 'A+' },
+  { student: 3, sem: 2, code: '25ECP-102', name: 'AI Applications Lab', internal: 57.5, external: 38, credits: 1, grade: 'A+' },
+  { student: 3, sem: 2, code: '25GPT-121', name: 'General Proficiency-1', internal: 0, external: 61.25, credits: 1, grade: 'C+' },
+  { student: 3, sem: 2, code: '25MEP-102', name: 'Computer Graphics Lab', internal: 55.25, external: 34, credits: 1, grade: 'A' },
+  { student: 3, sem: 2, code: '25PCP-111', name: 'Communication Skills-II', internal: 49.88, external: 38.5, credits: 1, grade: 'B+' },
+  { student: 3, sem: 2, code: '25SMT-198', name: 'Mathematics-II', internal: 49.5, external: 50, credits: 5, grade: 'A+' },
+  { student: 3, sem: 2, code: '25SZT-148', name: 'Biology for Engineers', internal: 47.75, external: 50, credits: 3, grade: 'A+' },
+  { student: 3, sem: 2, code: '25TDP-151', name: 'SOFT SKILLS - I', internal: 47, external: 28, credits: 1, grade: 'B+' },
 ];
 
-/** General Proficiency is external-only and scores low across the class: a 67.5 got a B, 63.13 a C+. */
+/**
+ * Subjects where the whole class scores lower, so every cut-off sits lower:
+ *  - General Proficiency (external-only): 67.5 got a B, 63.13 a C+.
+ *  - Soft Skills: 75 got a B+, 72 a B, 64 a C+.
+ *  - Communication Skills-I: 92.02 got an A+, 80.74 a B+, 76.56 a B.
+ */
 export const KNOWN_SHIFTS: Record<string, number> = {
   '25GPT-121': -8,
+  '25TDP-151': -8,
+  '25PCH-110': -4,
 };
