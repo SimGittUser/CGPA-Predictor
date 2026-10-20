@@ -8,6 +8,7 @@ import { PastSemesters } from './components/PastSemesters';
 import { SubjectDetail } from './components/SubjectDetail';
 import { Welcome } from './components/Welcome';
 import { animateOut, useConfirm } from './components/motion';
+import { Scene, ThemePicker, switchTheme, useResolvedTheme } from './components/Theme';
 import { Icon } from './components/ui';
 import { initialState } from './lib/factory';
 import { choosePlan, requiredSgpaForCgpa, simulate, subjectModel } from './lib/predict';
@@ -65,11 +66,7 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const t = state.settings.theme;
-    if (t === 'system') delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = t;
-  }, [state.settings.theme]);
+  const theme = useResolvedTheme(state.settings.theme);
 
   const update = useCallback((fn: (s: AppState) => AppState) => {
     setState((s) => ({ ...fn(s), updatedAt: new Date().toISOString() }));
@@ -100,6 +97,8 @@ export default function App() {
   const inSetup = !state.setupDone && route.view !== 'help';
 
   return (
+    <>
+    <Scene theme={theme} />
     <div className="app">
       <header className="top">
         <a className="brand" href="#/">
@@ -168,6 +167,7 @@ export default function App() {
         An estimate made by students, not an official Chandigarh University tool. Your marks stay on this device.
       </footer>
     </div>
+    </>
   );
 }
 
@@ -200,7 +200,6 @@ function Menu({ state, update, replace }: { state: AppState; update: (fn: (s: Ap
     };
   }, [open]);
 
-  const dark = state.settings.theme === 'dark' || (state.settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
   const ask = useConfirm();
 
   return (
@@ -220,13 +219,12 @@ function Menu({ state, update, replace }: { state: AppState; update: (fn: (s: Ap
             <span className="small muted">Bring back marks from a saved file</span>
           </button>
           <div className="menu-sep" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => (update((s) => ({ ...s, settings: { ...s.settings, theme: dark ? 'light' : 'dark' } })), setOpen(false))}
-          >
-            <b>{dark ? 'Switch to light mode' : 'Switch to dark mode'}</b>
-          </button>
+          <div className="menu-label">Theme</div>
+          <ThemePicker
+            theme={state.settings.theme}
+            onPick={(t, origin) => switchTheme(t, origin, () => update((s) => ({ ...s, settings: { ...s.settings, theme: t } })))}
+          />
+          <div className="menu-sep" />
           <button
             type="button"
             role="menuitem"

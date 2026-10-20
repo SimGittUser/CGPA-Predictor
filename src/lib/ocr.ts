@@ -7,9 +7,11 @@ export interface UploadedImage {
 }
 
 export interface ReadProgress {
+  /** 'setup' = downloading the reader (slow only the first time), 'read' = reading the screenshots. */
+  phase: 'setup' | 'read';
   /** Plain-words status for the student. */
   label: string;
-  /** 0–1 across all images. */
+  /** 0–1 within the current phase. */
   value: number;
 }
 
@@ -40,21 +42,35 @@ async function prepare(file: File): Promise<{ source: HTMLCanvasElement | File; 
  * Returns every text line in order, with word confidences and where it sits on its image.
  */
 export async function readScreenshots(files: File[], onProgress: (p: ReadProgress) => void): Promise<{ lines: SourceLine[]; images: UploadedImage[] }> {
-  onProgress({ label: 'Getting the reader ready…', value: 0 });
+  const setup = (value: number) =>
+    onProgress({ phase: 'setup', label: 'Downloading the reader. This only happens the first time.', value: Math.min(1, value) });
+  setup(0);
   const { createWorker, PSM } = await import('tesseract.js');
+  setup(0.05);
   let current = 0;
+  let setupValue = 0.05;
   const worker = await createWorker('eng', 1, {
     logger: (m: { status: string; progress: number }) => {
       if (m.status === 'recognizing text') {
         onProgress({
+          phase: 'read',
           label: files.length > 1 ? `Reading screenshot ${current + 1} of ${files.length}…` : 'Reading your screenshot…',
           value: (current + m.progress) / files.length,
         });
-      } else if (/load|initializ/i.test(m.status)) {
-        onProgress({ label: 'Getting the reader ready (only slow the first time)…', value: 0 });
+        return;
       }
+      // Setup has two downloads: the reading engine (~4 MB), then the English language data (~5 MB).
+      // Tesseract reports each one's progress from 0 to 1; map them onto one ring that only moves forward.
+      let v = setupValue;
+      if (/loading tesseract core/i.test(m.status)) v = 0.05 + m.progress * 0.35;
+      else if (/initializing tesseract/i.test(m.status)) v = 0.42;
+      else if (/loading language traineddata/i.test(m.status)) v = 0.45 + m.progress * 0.5;
+      else if (/initializ/i.test(m.status)) v = 0.97;
+      setupValue = Math.max(setupValue, v);
+      setup(setupValue);
     },
   });
+  setup(1);
   // Single-block mode keeps each table row on one line; the default splits the columns apart.
   await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK, preserve_interword_spaces: '1' });
 
@@ -83,6 +99,6 @@ export async function readScreenshots(files: File[], onProgress: (p: ReadProgres
   } finally {
     await worker.terminate();
   }
-  onProgress({ label: 'Done', value: 1 });
+  onProgress({ phase: 'read', label: 'Done', value: 1 });
   return { lines, images };
 }

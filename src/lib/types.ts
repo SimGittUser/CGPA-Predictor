@@ -51,7 +51,9 @@ export interface PastSemester {
 }
 
 export type Uncertainty = 'low' | 'medium' | 'high';
-export type Theme = 'system' | 'light' | 'dark';
+/** 'system' follows the device: Light by day, Space if the device is in dark mode. */
+export type Theme = 'system' | 'light' | 'space' | 'sand' | 'ocean';
+export type ResolvedTheme = Exclude<Theme, 'system'>;
 
 export interface AppState {
   version: 1;

@@ -1,84 +1,149 @@
-:root {
+/*
+ * Four themes, each a full palette plus a heading face and a background scene
+ * (see "Theme scenes" at the end). Light is the default; the early script in
+ * index.html sets data-theme before first paint so there's no flash.
+ */
+:root,
+:root[data-theme='light'] {
+  /* Light: warm paper, ink, a deep bottle-green accent. */
   color-scheme: light;
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-2: #f0f1f4;
-  --border: #e3e5ea;
-  --ink: #16181d;
-  --ink-2: #4a4f5a;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --accent-soft: #dbe6fd;
-  --danger: #c2261d;
-  --warn-bg: #fff6e0;
-  --warn-ink: #7a5300;
+  --bg: #f6f3ec;
+  --surface: #fffdf8;
+  --surface-2: #efebe1;
+  --border: #e1dbcd;
+  --ink: #1d1a15;
+  --ink-2: #4a453b;
+  --muted: #7a7366;
+  --accent: #1f6b57;
+  --accent-soft: #dbeae3;
+  --on-accent: #fbfaf5;
+  --danger: #b42318;
+  --warn-bg: #fbeed2;
+  --warn-ink: #774b00;
 
-  --a-bg: #dcf5e4;
-  --a-ink: #11703a;
-  --b-bg: #dde9fb;
-  --b-ink: #1d4fb8;
-  --c-bg: #fdebd6;
-  --c-ink: #9a4a05;
-  --d-bg: #fde3cf;
-  --d-ink: #a2360a;
-  --f-bg: #fbdcdc;
-  --f-ink: #b01f1f;
+  --a-bg: #dcecdf;
+  --a-ink: #1c6a3b;
+  --b-bg: #e0e7f3;
+  --b-ink: #2b4f98;
+  --c-bg: #f6e4cf;
+  --c-ink: #94480c;
+  --d-bg: #f5d9c9;
+  --d-ink: #9e3410;
+  --f-bg: #f4d6d3;
+  --f-ink: #a3231c;
 
-  --radius: 14px;
-  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --display-weight: 600;
+  --shadow: 0 1px 0 rgb(29 26 21 / 0.04);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --bg: #111215;
-    --surface: #1a1b1f;
-    --surface-2: #232429;
-    --border: #2c2e34;
-    --ink: #f1f2f4;
-    --ink-2: #c3c6cd;
-    --muted: #8e939c;
-    --accent: #5b9bff;
-    --accent-soft: #1d2d4a;
-    --danger: #ff6b61;
-    --warn-bg: #2d2412;
-    --warn-ink: #f2c46b;
-    --a-bg: #16301f;
-    --a-ink: #4ade80;
-    --b-bg: #17283a;
-    --b-ink: #5cb3ff;
-    --c-bg: #33230f;
-    --c-ink: #fb9a2c;
-    --d-bg: #36200f;
-    --d-ink: #ff8a4c;
-    --f-bg: #3a1616;
-    --f-ink: #ff6b6b;
-  }
-}
-:root[data-theme='dark'] {
+:root[data-theme='space'] {
+  /* Space: a deep night sky with starlight-amber accents (no neon purple). */
   color-scheme: dark;
-  --bg: #111215;
-  --surface: #1a1b1f;
-  --surface-2: #232429;
-  --border: #2c2e34;
-  --ink: #f1f2f4;
-  --ink-2: #c3c6cd;
-  --muted: #8e939c;
-  --accent: #5b9bff;
-  --accent-soft: #1d2d4a;
-  --danger: #ff6b61;
-  --warn-bg: #2d2412;
-  --warn-ink: #f2c46b;
-  --a-bg: #16301f;
-  --a-ink: #4ade80;
-  --b-bg: #17283a;
-  --b-ink: #5cb3ff;
-  --c-bg: #33230f;
-  --c-ink: #fb9a2c;
-  --d-bg: #36200f;
-  --d-ink: #ff8a4c;
-  --f-bg: #3a1616;
-  --f-ink: #ff6b6b;
+  --bg: #060913;
+  --surface: rgb(14 19 35 / 0.88);
+  --surface-solid: #0e1323;
+  --surface-2: #161c32;
+  --border: #242c48;
+  --ink: #eef0fa;
+  --ink-2: #c0c5db;
+  --muted: #8b91ab;
+  --accent: #ffc56b;
+  --accent-soft: rgb(255 197 107 / 0.15);
+  --on-accent: #1d1400;
+  --danger: #ff7a6b;
+  --warn-bg: #2a2213;
+  --warn-ink: #f5c56b;
+
+  --a-bg: #11301f;
+  --a-ink: #62e3a0;
+  --b-bg: #152340;
+  --b-ink: #86b6ff;
+  --c-bg: #33250f;
+  --c-ink: #ffb25a;
+  --d-bg: #391f14;
+  --d-ink: #ff9161;
+  --f-bg: #3c1518;
+  --f-ink: #ff7e7e;
+
+  --display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --display-weight: 600;
+  --shadow: 0 0 0 1px rgb(255 255 255 / 0.02);
+}
+
+:root[data-theme='sand'] {
+  /* Desert: sun-bleached sand, burnt terracotta, olive and dusk-sky blue. */
+  color-scheme: light;
+  --bg: #ecdcbd;
+  --surface: #f8eedb;
+  --surface-2: #ead9b9;
+  --border: #d9c39b;
+  --ink: #36261a;
+  --ink-2: #5c4732;
+  --muted: #876f53;
+  --accent: #b14f27;
+  --accent-soft: #f0d3bd;
+  --on-accent: #fff7ec;
+  --danger: #a1261a;
+  --warn-bg: #f4dfb2;
+  --warn-ink: #6b470b;
+
+  --a-bg: #dfe4c4;
+  --a-ink: #4b671d;
+  --b-bg: #d9e1df;
+  --b-ink: #2f5a66;
+  --c-bg: #f1d5b2;
+  --c-ink: #964b0f;
+  --d-bg: #efcab0;
+  --d-ink: #983311;
+  --f-bg: #edc5bb;
+  --f-ink: #97231a;
+
+  --display: 'Fraunces', Georgia, serif;
+  --display-weight: 700;
+  --shadow: 0 1px 0 rgb(54 38 26 / 0.06);
+}
+
+:root[data-theme='ocean'] {
+  /* Ocean: deep teal water, seafoam accents, coral for warnings. */
+  color-scheme: dark;
+  --bg: #04212b;
+  --surface: rgb(8 46 58 / 0.9);
+  --surface-solid: #082e3a;
+  --surface-2: #0d3e4d;
+  --border: #185061;
+  --ink: #e5f5f6;
+  --ink-2: #b2d4d8;
+  --muted: #7ea8ae;
+  --accent: #5fe0c6;
+  --accent-soft: rgb(95 224 198 / 0.15);
+  --on-accent: #032a26;
+  --danger: #ff8a78;
+  --warn-bg: #2c3115;
+  --warn-ink: #f0d36b;
+
+  --a-bg: #0e3d32;
+  --a-ink: #70efb6;
+  --b-bg: #0e3450;
+  --b-ink: #88caff;
+  --c-bg: #3a3116;
+  --c-ink: #ffc66a;
+  --d-bg: #3c2618;
+  --d-ink: #ff9b6c;
+  --f-bg: #3e1d20;
+  --f-ink: #ff8c8c;
+
+  --display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --display-weight: 700;
+  --shadow: 0 0 0 1px rgb(255 255 255 / 0.02);
+}
+
+:root:not([data-theme='space']):not([data-theme='ocean']) {
+  --surface-solid: var(--surface);
+}
+:root {
+  --radius: 14px;
+  --font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 * {
@@ -253,7 +318,7 @@ footer {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn.primary:hover {
   filter: brightness(1.08);
@@ -911,7 +976,7 @@ select {
   height: 26px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 14px;
   margin-right: 6px;
   vertical-align: 2px;
@@ -1280,7 +1345,7 @@ input.box-max {
 .goal-chip.on {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .type-options {
   display: flex;
@@ -2323,4 +2388,489 @@ textarea {
 .example-text {
   margin: 10px 0 4px;
   color: var(--ink-2);
+}
+
+/* ================= Themes: type, layering, picker ================= */
+h1,
+h2,
+h3,
+.hero,
+.tile-num,
+.cgpa-flow b,
+.goal-context b,
+.istats b,
+.tpl-title,
+.dz-main,
+.logo {
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  letter-spacing: -0.01em;
+}
+.hero {
+  letter-spacing: -0.03em;
+}
+.app {
+  position: relative;
+  z-index: 1;
+}
+.card,
+.subject-list,
+.tabs {
+  box-shadow: var(--shadow);
+}
+.menu-pop {
+  min-width: 290px;
+  background: var(--surface-solid);
+}
+.dialog {
+  background: var(--surface-solid);
+}
+.menu-label {
+  padding: 6px 10px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.theme-picker {
+  padding: 2px 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.theme-picker .link {
+  align-self: flex-start;
+  padding: 0 4px;
+  text-align: left;
+}
+.theme-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    transform 0.15s;
+}
+.theme-option:hover {
+  transform: translateY(-1px);
+}
+.theme-option.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.theme-name {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 2px 2px;
+}
+
+/* Mini scenes on the swatches, so each theme is recognisable at a glance. */
+.swatch {
+  display: block;
+  height: 54px;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.swatch-light {
+  background:
+    radial-gradient(rgb(29 26 21 / 0.12) 1px, transparent 1.4px) 0 0 / 9px 9px,
+    #f6f3ec;
+  box-shadow: inset 0 0 0 1px #e1dbcd;
+}
+.swatch-light::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 14px;
+  width: 46%;
+  height: 6px;
+  border-radius: 3px;
+  background: #1f6b57;
+  box-shadow: 0 12px 0 -1px #cfc8b8;
+}
+.swatch-space {
+  background:
+    radial-gradient(1.2px 1.2px at 18% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 42% 70%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 66% 22%, #ffe2b4, transparent),
+    radial-gradient(1px 1px at 84% 58%, #fff, transparent),
+    radial-gradient(1px 1px at 30% 52%, #c4d6ff, transparent),
+    radial-gradient(1.2px 1.2px at 92% 18%, #fff, transparent),
+    radial-gradient(120% 90% at 0% 100%, rgb(255 197 107 / 0.16), transparent 60%),
+    #060913;
+}
+.swatch-sand {
+  background:
+    radial-gradient(circle at 78% 30%, #f6c98a 0 9px, transparent 10px),
+    radial-gradient(140% 70% at 30% 120%, #cfae76 0 55%, transparent 56%),
+    radial-gradient(140% 70% at 85% 130%, #d9bd8b 0 60%, transparent 61%),
+    #ecdcbd;
+}
+.swatch-ocean {
+  background:
+    radial-gradient(120% 60% at 30% 125%, rgb(95 224 198 / 0.35) 0 50%, transparent 51%),
+    radial-gradient(120% 60% at 85% 135%, rgb(120 200 230 / 0.25) 0 55%, transparent 56%),
+    linear-gradient(180deg, #0b3a48, #04212b);
+}
+
+/* Theme switch: the new theme spreads out in a circle from the tapped swatch. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: theme-reveal 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 0));
+  }
+  to {
+    clip-path: circle(150vmax at var(--vt-x, 50%) var(--vt-y, 0));
+  }
+}
+
+/* ================= Theme scenes ================= */
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Light: a faint dot grid, like good notebook paper. */
+.scene-light {
+  background: radial-gradient(rgb(29 26 21 / 0.07) 1px, transparent 1.3px) 0 0 / 22px 22px;
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+}
+
+/* Space: three star layers drifting at different speeds, some twinkling. */
+.space-haze {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 45% at 0% 100%, rgb(255 197 107 / 0.09), transparent 70%),
+    radial-gradient(50% 40% at 100% 0%, rgb(134 182 255 / 0.06), transparent 70%);
+}
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  background: transparent;
+  will-change: transform;
+}
+.stars::after {
+  content: '';
+  position: absolute;
+  top: 2000px;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 50%;
+  box-shadow: inherit;
+}
+.stars-sm {
+  width: 1px;
+  height: 1px;
+  animation: star-drift 240s linear infinite;
+}
+.stars-md {
+  width: 1.5px;
+  height: 1.5px;
+  animation:
+    star-drift 170s linear infinite,
+    twinkle 4.5s ease-in-out infinite alternate;
+}
+.stars-lg {
+  width: 2.5px;
+  height: 2.5px;
+  animation:
+    star-drift 120s linear infinite,
+    twinkle 3.2s ease-in-out infinite alternate-reverse;
+}
+@keyframes star-drift {
+  to {
+    transform: translateY(-2000px);
+  }
+}
+@keyframes twinkle {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+.shooting-star {
+  position: absolute;
+  top: 12%;
+  left: 70%;
+  width: 120px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgb(255 236 200 / 0.9), transparent);
+  transform: rotate(-28deg);
+  opacity: 0;
+  animation: shoot 13s ease-out infinite;
+  animation-delay: 4s;
+}
+.shooting-star-2 {
+  top: 34%;
+  left: 30%;
+  width: 90px;
+  animation-duration: 19s;
+  animation-delay: 11s;
+}
+@keyframes shoot {
+  0% {
+    opacity: 0;
+    translate: 0 0;
+  }
+  1% {
+    opacity: 1;
+  }
+  6% {
+    opacity: 0;
+    translate: -260px 140px;
+  }
+  100% {
+    opacity: 0;
+    translate: -260px 140px;
+  }
+}
+
+/* Desert: a low sun, three dune ridges and a film-grain texture. */
+.scene-sand .sun {
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(246 201 138 / 0.75) 0 32%, rgb(246 201 138 / 0.18) 50%, transparent 70%);
+  animation: sun-breathe 12s ease-in-out infinite alternate;
+}
+@keyframes sun-breathe {
+  to {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
+.dunes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 32vh;
+  min-height: 180px;
+}
+.dune-back {
+  fill: #e2cb9f;
+}
+.dune-mid {
+  fill: #d8bb87;
+}
+.dune-front {
+  fill: #cdab72;
+}
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.12 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Ocean: light rays from the surface, slow waves at the bottom, a few rising bubbles. */
+.scene-ocean {
+  background: linear-gradient(180deg, #0a3644 0%, #05242e 45%, #021820 100%);
+}
+.rays {
+  position: absolute;
+  inset: -20% -10% 30%;
+  background: repeating-linear-gradient(100deg, rgb(140 230 220 / 0.07) 0 40px, transparent 40px 140px);
+  mask-image: linear-gradient(180deg, #000, transparent 75%);
+  transform-origin: 50% 0;
+  animation: rays-sway 16s ease-in-out infinite alternate;
+}
+@keyframes rays-sway {
+  from {
+    transform: rotate(-3deg) translateX(-2%);
+  }
+  to {
+    transform: rotate(3deg) translateX(2%);
+  }
+}
+.waves {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22vh;
+  min-height: 130px;
+}
+.wave {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 100%;
+  will-change: transform;
+}
+.wave-back {
+  fill: rgb(120 200 230 / 0.07);
+  animation: wave-drift 38s linear infinite;
+  bottom: 14px;
+}
+.wave-front {
+  fill: rgb(95 224 198 / 0.08);
+  animation: wave-drift 24s linear infinite reverse;
+}
+@keyframes wave-drift {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.bubble {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 50%;
+  border: 1px solid rgb(180 240 235 / 0.35);
+  background: radial-gradient(circle at 30% 30%, rgb(255 255 255 / 0.35), transparent 60%);
+  animation: bubble-rise linear infinite;
+}
+@keyframes bubble-rise {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(12px, -50vh);
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-6px, -100vh);
+    opacity: 0;
+  }
+}
+
+/* ================= Reading progress ring ================= */
+.reading-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 18px 0 6px;
+  text-align: center;
+}
+.ring {
+  position: relative;
+  width: 148px;
+  height: 148px;
+}
+.ring svg {
+  width: 100%;
+  height: 100%;
+}
+.ring-track {
+  fill: none;
+  stroke: var(--surface-2);
+  stroke-width: 10;
+}
+.ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.35s var(--ease-out, ease);
+}
+.ring-fill.read {
+  stroke: var(--a-ink);
+}
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.ring-pct {
+  font-family: var(--display);
+  font-weight: var(--display-weight);
+  font-size: 32px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ring-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.ring-label {
+  margin: 10px 0 0;
+  font-weight: 600;
+}
+.ring-steps {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.ring-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--muted);
+  transition: color 0.3s;
+}
+.ring-steps li.now,
+.ring-steps li.done {
+  color: var(--ink);
+}
+.ring-step-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--muted);
+  transition: background-color 0.3s, color 0.3s;
+}
+.ring-steps li.now .ring-step-num {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.ring-steps li.done .ring-step-num {
+  background: var(--a-bg);
+  color: var(--a-ink);
 }

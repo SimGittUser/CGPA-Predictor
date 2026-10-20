@@ -31,7 +31,12 @@ export function normalize(raw: unknown): AppState {
       excluded: !!s.excluded,
     })),
     pastSemesters: r.pastSemesters ?? [],
-    settings: { ...base.settings, ...(r.settings ?? {}) },
+    settings: {
+      ...base.settings,
+      ...(r.settings ?? {}),
+      // The old "dark" theme became Space.
+      theme: (r.settings?.theme as string) === 'dark' ? 'space' : r.settings?.theme ?? base.settings.theme,
+    },
   };
 }
 

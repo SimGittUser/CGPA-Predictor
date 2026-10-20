@@ -23,7 +23,7 @@ type Stage = 'upload' | 'reading' | 'review';
 
 export function ImportFlow({ state, update, firstTime, intro, onManual, onDone, onCancel }: Props) {
   const [stage, setStage] = useState<Stage>('upload');
-  const [progress, setProgress] = useState<ReadProgress>({ label: '', value: 0 });
+  const [progress, setProgress] = useState<ReadProgress>({ phase: 'setup', label: '', value: 0 });
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftSubject[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -69,11 +69,8 @@ export function ImportFlow({ state, update, firstTime, intro, onManual, onDone, 
       <Card className="reading">
         <div className="step-label">Step 1 of 2</div>
         <h2>Reading your marks…</h2>
-        <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress.value * 100)}>
-          <div style={{ width: `${Math.max(4, progress.value * 100)}%` }} />
-        </div>
-        <p className="muted">{progress.label}</p>
-        <p className="muted small">This happens on your device. Your screenshot isn't uploaded anywhere.</p>
+        <ReadingRing progress={progress} />
+        <p className="muted small center">This happens on your device. Your screenshot isn't uploaded anywhere.</p>
       </Card>
     );
   }
@@ -116,6 +113,68 @@ export function ImportFlow({ state, update, firstTime, intro, onManual, onDone, 
           </button>
         </p>
       )}
+    </div>
+  );
+}
+
+// ---- Reading progress -----------------------------------------------------------------
+
+/** A ring that fills as the reader downloads (first time only), then as it reads the screenshots. */
+function ReadingRing({ progress }: { progress: ReadProgress }) {
+  const [started] = useState(() => performance.now());
+  const [setupDone, setSetupDone] = useState<number | null>(null);
+  const { phase, value, label } = progress;
+  if (phase === 'read' && setupDone === null) setSetupDone(performance.now() - started);
+
+  // Seconds left for the download, from how fast it's gone so far.
+  const elapsed = (performance.now() - started) / 1000;
+  const left = phase === 'setup' && value > 0.08 && value < 0.99 ? Math.max(1, Math.round((elapsed / value) * (1 - value))) : null;
+
+  const R = 54;
+  const C = 2 * Math.PI * R;
+  const pctNum = Math.round(value * 100);
+
+  return (
+    <div className="reading-body">
+      <div className="ring" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctNum} aria-label={label}>
+        <svg viewBox="0 0 128 128">
+          <circle className="ring-track" cx="64" cy="64" r={R} />
+          <circle
+            className={`ring-fill ${phase}`}
+            cx="64"
+            cy="64"
+            r={R}
+            strokeDasharray={C}
+            strokeDashoffset={C * (1 - Math.max(0.02, value))}
+            transform="rotate(-90 64 64)"
+          />
+        </svg>
+        <div className="ring-center">
+          <span className="ring-pct">{pctNum}%</span>
+          <span className="ring-sub">{phase === 'setup' ? 'downloading' : 'reading'}</span>
+        </div>
+      </div>
+      <p className="ring-label">{label}</p>
+      {left !== null && <p className="small muted">About {left} second{left === 1 ? '' : 's'} left</p>}
+      <ol className="ring-steps">
+        <li className={phase === 'setup' ? 'now' : 'done'}>
+          <span className="ring-step-num">{phase === 'setup' ? '1' : '✓'}</span>
+          <span>
+            Download the reader
+            <span className="small muted">
+              {phase === 'setup'
+                ? ' (about 10 MB, first time only)'
+                : setupDone !== null && setupDone < 1500
+                  ? ' (already saved from last time)'
+                  : ' (done, saved for next time)'}
+            </span>
+          </span>
+        </li>
+        <li className={phase === 'read' ? 'now' : ''}>
+          <span className="ring-step-num">2</span>
+          <span>Read your screenshot</span>
+        </li>
+      </ol>
     </div>
   );
 }
