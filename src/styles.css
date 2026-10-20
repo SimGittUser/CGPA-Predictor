@@ -1637,8 +1637,10 @@ input.guessed {
 }
 .crop-wrap {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
+  max-width: 100%;
 }
 .review-actions {
   display: flex;
@@ -2873,4 +2875,18 @@ h3,
 .ring-steps li.done .ring-step-num {
   background: var(--a-bg);
   color: var(--a-ink);
+}
+
+/* The two goal boxes always share one row, SGPA → CGPA; only the warning note wraps below. */
+.goal-pair label {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 190px;
+}
+.goal-pair-big .big-input,
+.goal-pair-small .target-input {
+  width: 100%;
+}
+.goal-arrow {
+  flex: none;
 }

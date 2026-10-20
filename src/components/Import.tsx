@@ -486,7 +486,7 @@ function LineCrop({ img, bbox }: { img: UploadedImage; bbox: { x0: number; y0: n
   const w = Math.min(img.width, bbox.x1 + pad) - x0;
   const h = Math.min(img.height, bbox.y1 + pad) - y0;
   // Zoom in up to 2×, but never wider than a phone screen allows.
-  const s = Math.min(2, 260 / w);
+  const s = Math.min(2, 230 / w);
   return (
     <div className="crop" style={{ width: w * s, height: h * s }}>
       <img src={img.url} alt="These marks in your screenshot" style={{ width: img.width * s, left: -x0 * s, top: -y0 * s }} />
